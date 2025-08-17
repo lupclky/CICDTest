@@ -1,0 +1,37 @@
+---
+- name: Deploy Docker Container to App Server
+  hosts: app_server
+  become: yes
+
+  vars:
+    # These variables will be passed from the Jenkins pipeline
+    image_name: "{{ image_name }}"
+    docker_user: "{{ docker_user }}"
+    docker_pass: "{{ docker_pass }}"
+
+  tasks:
+    - name: Log in to Docker Hub
+      community.docker.docker_login:
+        username: "{{ docker_user }}"
+        password: "{{ docker_pass }}"
+      become: no # Login as the remote user (ec2-user), not root
+
+    - name: Stop the existing container
+      community.docker.docker_container:
+        name: simple-web
+        state: absent
+      ignore_errors: yes
+
+    - name: Pull the latest image from Docker Hub
+      community.docker.docker_image:
+        name: "{{ image_name }}"
+        source: pull
+
+    - name: Run the new container
+      community.docker.docker_container:
+        name: simple-web
+        image: "{{ image_name }}"
+        state: started
+        ports:
+          - "80:80"
+        restart_policy: always

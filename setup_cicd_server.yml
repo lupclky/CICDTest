@@ -1,0 +1,77 @@
+---
+- name: Setup CI/CD Server
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update all packages
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+
+    - name: Install Java 17 for Jenkins
+      ansible.builtin.dnf:
+        name: java-17-amazon-corretto-devel
+        state: present
+
+    - name: Add Jenkins repository
+      ansible.builtin.yum_repository:
+        name: jenkins
+        description: Jenkins-stable
+        baseurl: https://pkg.jenkins.io/redhat-stable/
+        gpgkey: https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+        enabled: yes
+
+    - name: Install Jenkins
+      ansible.builtin.dnf:
+        name: jenkins
+        state: present
+
+    - name: Install Docker, Ansible, Git
+      ansible.builtin.dnf:
+        name:
+          - docker
+          - ansible
+          - git
+        state: present
+
+    - name: Add Trivy repository
+      ansible.builtin.yum_repository:
+        name: trivy
+        description: Trivy repository
+        baseurl: "https://aquasecurity.github.io/trivy-repo/rpm/releases/2023/$basearch/"
+        gpgkey: https://aquasecurity.github.io/trivy-repo/rpm/public.key
+        enabled: yes
+
+    - name: Install Trivy
+      ansible.builtin.dnf:
+        name: trivy
+        state: present
+
+    - name: Start and enable Docker service
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add ec2-user to the docker group
+      ansible.builtin.user:
+        name: ec2-user
+        groups: docker
+        append: yes
+
+    - name: Add jenkins user to the docker group
+      ansible.builtin.user:
+        name: jenkins
+        groups: docker
+        append: yes
+
+    - name: Start and enable Jenkins service
+      ansible.builtin.service:
+        name: jenkins
+        state: started
+        enabled: yes
+
+    - name: Restart Jenkins to apply group changes
+      ansible.builtin.service:
+        name: jenkins
+        state: restarted

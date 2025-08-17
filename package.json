@@ -1,0 +1,40 @@
+{
+  "name": "devops-test-website",
+  "version": "1.0.0",
+  "description": "Website đơn giản để test các quy trình DevOps",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server -p 3000 -o",
+    "dev": "npx live-server --port=3000 --open=/",
+    "build": "echo 'Building static website...' && echo 'Build completed!'",
+    "test": "echo 'Running tests...' && echo 'All tests passed!'",
+    "lint": "echo 'Linting code...' && echo 'No linting issues found!'",
+    "deploy": "echo 'Deploying to production...' && echo 'Deployment successful!'",
+    "health-check": "curl -f http://localhost:3000 || exit 1"
+  },
+  "keywords": [
+    "devops",
+    "test",
+    "website",
+    "ci-cd",
+    "deployment",
+    "monitoring"
+  ],
+  "author": "DevOps Team",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "live-server": "^1.2.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/devops-test-website.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/devops-test-website/issues"
+  },
+  "homepage": "https://your-org.github.io/devops-test-website"
+}

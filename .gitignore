@@ -1,0 +1,13 @@
+# Terraform files
+.terraform/
+*.tfstate
+*.tfstate.backup
+crash.log
+*.tfvars
+
+# Private Keys
+# It's crucial to not commit your private keys to version control.
+*.pem
+
+# Ansible temporary files
+inventory
