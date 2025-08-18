@@ -1,5 +1,11 @@
 pipeline {
     agent any
+    
+    triggers {
+        // Automatically trigger build on SCM changes (webhook)
+        githubPush()
+        // Or use pollSCM for regular polling: pollSCM('H/5 * * * *') // Check every 5 minutes
+    }
 
     environment {
         DOCKERHUB_CREDENTIALS_ID = 'dockerhub-credentials' // Jenkins credential ID for Docker Hub
@@ -10,9 +16,52 @@ pipeline {
 
     parameters {
         string(name: 'SERVER2_IP', defaultValue: '', description: 'Public IP of Server 2 for deployment')
+        string(name: 'GIT_BRANCH', defaultValue: 'main', description: 'Git branch to checkout and build')
+        string(name: 'GIT_REPO_URL', defaultValue: '', description: 'GitHub repository URL (if different from SCM)')
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                echo "Cleaning workspace and checking out source code from Git..."
+                
+                // Clean workspace to ensure fresh start
+                cleanWs()
+                
+                script {
+                    if (params.GIT_REPO_URL?.trim()) {
+                        // Use custom repository URL if provided
+                        echo "Checking out from custom repository: ${params.GIT_REPO_URL}"
+                        echo "Branch: ${params.GIT_BRANCH}"
+                        
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: "*/${params.GIT_BRANCH}"]],
+                            userRemoteConfigs: [[url: "${params.GIT_REPO_URL}"]]
+                        ])
+                    } else {
+                        // Use default SCM configuration
+                        echo "Checking out from default SCM configuration"
+                        echo "Branch: ${params.GIT_BRANCH}"
+                        
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: "*/${params.GIT_BRANCH}"]],
+                            userRemoteConfigs: scm.userRemoteConfigs
+                        ])
+                    }
+                }
+                
+                // Display current commit information
+                script {
+                    def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+                    def gitMessage = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
+                    echo "Current commit: ${gitCommit}"
+                    echo "Commit message: ${gitMessage}"
+                }
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 echo "Building Docker image: ${IMAGE_NAME}"
@@ -63,6 +112,27 @@ pipeline {
             // Clean up workspace and log out
             cleanWs()
             sh "docker logout"
+        }
+        
+        success {
+            echo "🎉 Deployment successful!"
+            echo "✅ Application deployed to Server 2 at ${params.SERVER2_IP}"
+            echo "🐳 Docker image: ${IMAGE_NAME}"
+            
+            // Optional: Send notification (uncomment if you have notification setup)
+            // slackSend(channel: '#deployments', 
+            //          color: 'good', 
+            //          message: "✅ Deployment successful: ${IMAGE_NAME} deployed to ${params.SERVER2_IP}")
+        }
+        
+        failure {
+            echo "❌ Deployment failed!"
+            echo "🔍 Check the logs above for details"
+            
+            // Optional: Send failure notification
+            // slackSend(channel: '#deployments', 
+            //          color: 'danger', 
+            //          message: "❌ Deployment failed: ${IMAGE_NAME} - Check Jenkins logs")
         }
     }
 }
