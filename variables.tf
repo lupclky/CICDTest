@@ -1,6 +1,6 @@
 variable "aws_region" {
   description = "The AWS region to create resources in."
-  default     = "us-east-1"
+  default     = "ap-southeast-1"
 }
 
 variable "instance_type_server1" {
@@ -15,10 +15,10 @@ variable "instance_type_server2" {
 
 variable "key_name" {
   description = "The name of the AWS key pair to use for SSH access."
-  default     = "my-key-pair" # Please replace with your actual key pair name
+  default     = "devops-cicd-key" # Key pair for CI/CD deployment
 }
 
 variable "private_key_path" {
   description = "The local path to the private key file (.pem) for SSH access."
-  default     = "./my-key-pair.pem" # Please replace with the actual path
+  default     = "./devops-cicd-key.pem" # Private key file for EC2 access
 }
