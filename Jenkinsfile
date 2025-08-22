@@ -9,7 +9,7 @@ pipeline {
 
     environment {
         DOCKERHUB_CREDENTIALS_ID = 'dockerhub-credentials' // Jenkins credential ID for Docker Hub
-        DOCKERHUB_USERNAME       = 'powder2810'
+        DOCKERHUB_USERNAME       = 'powder2810'  # Thay bằng username Docker Hub của bạn
         IMAGE_NAME               = "${env.DOCKERHUB_USERNAME}/simple-web:${env.BUILD_NUMBER}"
         SSH_CREDENTIALS_ID       = 'server2-ssh-key'      // Jenkins credential ID for Server 2's private key
     }

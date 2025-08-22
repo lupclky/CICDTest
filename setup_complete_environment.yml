@@ -1,0 +1,160 @@
+---
+- name: Complete DevOps Environment Setup
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: Update all packages
+      dnf:
+        name: "*"
+        state: latest
+
+    - name: Install common packages
+      dnf:
+        name:
+          - git
+          - curl
+          - wget
+          - unzip
+        state: present
+
+# Server 1 (CI/CD) specific tasks
+- name: Setup CI/CD Server
+  hosts: cicd_server
+  become: yes
+  tasks:
+    - name: Install Java 17 for Jenkins
+      dnf:
+        name: java-17-amazon-corretto-devel
+        state: present
+
+    - name: Add Jenkins repository
+      yum_repository:
+        name: jenkins
+        description: Jenkins-stable
+        baseurl: https://pkg.jenkins.io/redhat-stable/
+        gpgkey: https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+        enabled: yes
+
+    - name: Install Jenkins
+      dnf:
+        name: jenkins
+        state: present
+
+    - name: Install Docker
+      dnf:
+        name: docker
+        state: present
+
+    - name: Add Trivy repository
+      yum_repository:
+        name: trivy
+        description: Trivy repository
+        baseurl: "https://aquasecurity.github.io/trivy-repo/rpm/releases/$basearch/"
+        gpgkey: https://aquasecurity.github.io/trivy-repo/rpm/public.key
+        enabled: yes
+
+    - name: Install Trivy
+      dnf:
+        name: trivy
+        state: present
+
+    - name: Start and enable Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add ec2-user to docker group
+      user:
+        name: ec2-user
+        groups: docker
+        append: yes
+
+    - name: Add jenkins user to docker group
+      user:
+        name: jenkins
+        groups: docker
+        append: yes
+
+    - name: Start and enable Jenkins service
+      systemd:
+        name: jenkins
+        state: started
+        enabled: yes
+
+    - name: Wait for Jenkins to start
+      wait_for:
+        port: 8080
+        host: "{{ ansible_host }}"
+        delay: 30
+        timeout: 300
+
+    - name: Get Jenkins initial password
+      slurp:
+        src: /var/lib/jenkins/secrets/initialAdminPassword
+      register: jenkins_password
+      ignore_errors: yes
+
+    - name: Display Jenkins password
+      debug:
+        msg: "Jenkins Initial Password: {{ jenkins_password.content | b64decode | trim }}"
+      when: jenkins_password.content is defined
+
+# Server 2 (App) specific tasks
+- name: Setup Application Server
+  hosts: app_server
+  become: yes
+  tasks:
+    - name: Install Docker
+      dnf:
+        name: docker
+        state: present
+
+    - name: Start and enable Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add ec2-user to docker group
+      user:
+        name: ec2-user
+        groups: docker
+        append: yes
+
+    - name: Test Docker installation
+      command: docker --version
+      register: docker_version
+      become_user: ec2-user
+
+    - name: Display Docker version
+      debug:
+        msg: "Docker version on App Server: {{ docker_version.stdout }}"
+
+# Final summary
+- name: Display Setup Summary
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Show completion message
+      debug:
+        msg: |
+          🎉 DevOps Environment Setup Complete!
+          
+          Server 1 (CI/CD): {{ hostvars['server1']['ansible_host'] }}
+          - Jenkins: http://{{ hostvars['server1']['ansible_host'] }}:8080
+          - Docker: ✅ Installed
+          - Trivy: ✅ Installed
+          
+          Server 2 (App): {{ hostvars['server2']['ansible_host'] }}
+          - Docker: ✅ Installed
+          - Ready for deployments
+          
+          Next Steps:
+          1. Access Jenkins and complete setup wizard
+          2. Create Docker Hub credentials
+          3. Create pipeline job
+          4. Update Jenkinsfile with your Docker Hub username
+          5. Run your first deployment!

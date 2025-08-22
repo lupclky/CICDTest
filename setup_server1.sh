@@ -1,5 +1,5 @@
 #!/bin/bash
-echo "🚀 Setting up CI/CD Server..."
+echo "Setting up CI/CD Server..."
 
 # Update system
 sudo dnf update -y
@@ -42,10 +42,13 @@ sudo usermod -aG docker jenkins
 sudo systemctl start jenkins
 sudo systemctl enable jenkins
 
+# Wait a bit for Jenkins to start
+sleep 10
+
 # Get Jenkins initial password
-echo "🔑 Jenkins Initial Password:"
+echo "Jenkins Initial Password:"
 sudo cat /var/lib/jenkins/secrets/initialAdminPassword
 
-echo "✅ Server 1 setup completed!"
-echo "🌐 Access Jenkins at: http://54.169.146.170:8080"
+echo "Server 1 setup completed!"
+echo "Access Jenkins at: http://54.169.146.170:8080"
 

@@ -1,0 +1,107 @@
+---
+- name: Configure Jenkins with Credentials and Pipeline
+  hosts: cicd_server
+  become: yes
+  vars:
+    jenkins_url: "http://{{ ansible_host }}:8080"
+    dockerhub_username: "{{ dockerhub_user | default('your-dockerhub-username') }}"
+    dockerhub_password: "{{ dockerhub_pass | default('your-dockerhub-password') }}"
+    server2_ip: "{{ hostvars['server2']['ansible_host'] }}"
+
+  tasks:
+    - name: Wait for Jenkins to be ready
+      uri:
+        url: "{{ jenkins_url }}/login"
+        method: GET
+      register: jenkins_ready
+      until: jenkins_ready.status == 200
+      retries: 30
+      delay: 10
+
+    - name: Get Jenkins initial admin password
+      slurp:
+        src: /var/lib/jenkins/secrets/initialAdminPassword
+      register: jenkins_password_file
+      ignore_errors: yes
+
+    - name: Display Jenkins initial password
+      debug:
+        msg: "Jenkins Initial Password: {{ jenkins_password_file.content | b64decode | trim }}"
+      when: jenkins_password_file.content is defined
+
+    - name: Install Jenkins CLI
+      get_url:
+        url: "{{ jenkins_url }}/jnlpJars/jenkins-cli.jar"
+        dest: /tmp/jenkins-cli.jar
+        mode: '0644'
+
+    - name: Create Jenkins credentials directory
+      file:
+        path: /var/lib/jenkins/credentials
+        state: directory
+        owner: jenkins
+        group: jenkins
+        mode: '0755'
+
+    - name: Install required Jenkins plugins
+      shell: |
+        java -jar /tmp/jenkins-cli.jar -s {{ jenkins_url }} -auth admin:{{ jenkins_password_file.content | b64decode | trim }} install-plugin github docker-workflow ssh-agent
+      when: jenkins_password_file.content is defined
+      ignore_errors: yes
+
+    - name: Restart Jenkins after plugin installation
+      systemd:
+        name: jenkins
+        state: restarted
+      when: jenkins_password_file.content is defined
+
+    - name: Wait for Jenkins to restart
+      uri:
+        url: "{{ jenkins_url }}/login"
+        method: GET
+      register: jenkins_ready
+      until: jenkins_ready.status == 200
+      retries: 30
+      delay: 10
+      when: jenkins_password_file.content is defined
+
+    - name: Create Docker Hub credentials XML
+      template:
+        src: dockerhub_credentials.xml.j2
+        dest: /tmp/dockerhub_credentials.xml
+        mode: '0644'
+      vars:
+        credential_id: "dockerhub-credentials"
+        username: "{{ dockerhub_username }}"
+        password: "{{ dockerhub_password }}"
+
+    - name: Create SSH credentials XML for Server 2
+      template:
+        src: ssh_credentials.xml.j2
+        dest: /tmp/ssh_credentials.xml
+        mode: '0644'
+      vars:
+        credential_id: "server2-ssh-key"
+        username: "ec2-user"
+        private_key: "{{ lookup('file', './devops-cicd-key.pem') }}"
+
+    - name: Create Jenkins pipeline job XML
+      template:
+        src: pipeline_job.xml.j2
+        dest: /tmp/pipeline_job.xml
+        mode: '0644'
+      vars:
+        job_name: "devops-cicd-pipeline"
+        git_url: "https://github.com/your-username/your-repo.git"
+        server2_ip: "{{ server2_ip }}"
+
+    - name: Display next steps
+      debug:
+        msg: |
+          Jenkins setup completed! Next steps:
+          1. Access Jenkins at: {{ jenkins_url }}
+          2. Login with password: {{ jenkins_password_file.content | b64decode | trim }}
+          3. Complete initial setup wizard
+          4. Manually add credentials and create pipeline job
+          5. Update Jenkinsfile with your Docker Hub username
+      when: jenkins_password_file.content is defined
