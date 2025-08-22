@@ -26,7 +26,7 @@ pipeline {
                 echo "Cleaning workspace and checking out source code from Git..."
                 
                 // Clean workspace to ensure fresh start
-                cleanWs()
+                deleteDir()
                 
                 script {
                     if (params.GIT_REPO_URL?.trim()) {
@@ -110,7 +110,7 @@ pipeline {
     post {
         always {
             // Clean up workspace and log out
-            cleanWs()
+            deleteDir()
             sh "docker logout"
         }
         
